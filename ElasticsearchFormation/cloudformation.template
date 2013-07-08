@@ -19,30 +19,24 @@
 		"AppInstanceCountMin": {
 		"Description": "Minimum number of EC2 instances to launch for application AutoScaling Group",
 		"Type": "Number",
+		"MinValue":"1",
 		"Default": "2"
 	},
 		"AppInstanceCountMax": {
 		"Description": "Maximum number of EC2 instances to launch for application AutoScaling Group",
 		"Type": "Number",
+		"MinValue":"1",
 		"Default": "2"
 	},
 		"AppInstanceCountDesired": {
 		"Description": "Desired number of EC2 instances to launch for application AutoScaling Group",
 		"Type": "Number",
+		"MinValue":"1",
 		"Default": "2"
 	},
     "KeyName" : {
 		"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
 		"Type" : "String"
-    },
-    "SSHLocation" : {
-		"Description" : "The IP address range that can be used to SSH to the EC2 instances",
-		"Type": "String",
-		"MinLength": "9",
-		"MaxLength": "18",
-		"Default": "0.0.0.0/0",
-		"AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
-		"ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
     },
 	"SpotPrice":{
 		"Description": "Spot price for application AutoScaling Group",
@@ -73,14 +67,14 @@
   },
 
   "Resources" : {
-  "WebServerGroup" : {
+  "ServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
         "AvailabilityZones" : { "Fn::GetAZs" : ""},
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
-        "MinSize" : "2",
-        "MaxSize" : "5",
-		"DesiredCapacity":"2",
+        "MinSize" : {"Ref":"AppInstanceCountMin"},
+		"MaxSize" : {"Ref":"AppInstanceCountMax"},
+		"DesiredCapacity":{"Ref":"AppInstanceCountDesired"},
 		"LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
       }
     },
@@ -111,7 +105,7 @@
           "Target" : { "Fn::Join" : [ "", ["HTTP:", { "Ref" : "ServerPort" }, "/"]]},
           "HealthyThreshold" : "3",
           "UnhealthyThreshold" : "5",
-          "Interval" : "30",
+          "Interval" : "6",
           "Timeout" : "5"
         }
       }
@@ -121,7 +115,7 @@
       "Type" : "AWS::AutoScaling::ScalingPolicy",
       "Properties" : {
         "AdjustmentType" : "ChangeInCapacity",
-        "AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+        "AutoScalingGroupName" : { "Ref" : "ServerGroup" },
         "Cooldown" : "60",
         "ScalingAdjustment" : "1"
       }
@@ -130,7 +124,7 @@
       "Type" : "AWS::AutoScaling::ScalingPolicy",
       "Properties" : {
         "AdjustmentType" : "ChangeInCapacity",
-        "AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+        "AutoScalingGroupName" : { "Ref" : "ServerGroup" },
         "Cooldown" : "60",
         "ScalingAdjustment" : "-1"
       }
@@ -144,7 +138,7 @@
           "IpProtocol" : "tcp",
           "FromPort" : "22",
           "ToPort" : "22",
-          "CidrIp" : { "Ref" : "SSHLocation"}
+          "CidrIp" : "0.0.0.0/0"
         },
         {
           "IpProtocol" : "tcp",
