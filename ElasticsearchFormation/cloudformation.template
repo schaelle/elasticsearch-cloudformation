@@ -42,7 +42,15 @@
 		"Description": "Spot price for application AutoScaling Group",
 		"Type":"Number",
 		"MinValue": "0"
-	}
+	},
+    "AccessKey" : {
+		"Description" : "Access key",
+		"Type" : "String"
+    },
+	"SecretKey" : {
+		"Description" : "Secret key",
+		"Type" : "String"
+    }
   },
 
   "Mappings" : {
@@ -62,7 +70,7 @@
     },
 
     "AWSRegionArch2AMI" : {
-      "eu-west-1"      : { "64" : "ami-2924375d" }
+      "eu-west-1"      : { "64" : "ami-17031f63" }
     }
   },
 
@@ -86,9 +94,19 @@
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
                                           { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" },
                                           "Arch" ] } ] },
-        "UserData" : { "Fn::Base64" : { "Ref" : "ServerPort" }},
+        "UserData" : { "Fn::Base64" : {"Fn::Join":["",[
+			"#!/bin/bash\n",
+			"sed -i \"s/<access_key>/",
+			{"Ref":"AccessKey"},
+			"/g\"  /etc/elasticsearch/elasticsearch.yml\n",
+			"sed -i \"s/<secret_key>/",
+			{"Ref":"SecretKey"},
+			"/g\"  /etc/elasticsearch/elasticsearch.yml\n",
+			"/etc/init.d/elasticsearch restart\n"
+		]]}},
         "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
-        "InstanceType" : { "Ref" : "InstanceType" }
+        "InstanceType" : { "Ref" : "InstanceType" },
+		"SpotPrice": {"Ref":"SpotPrice"}
       }
     },
 
@@ -145,7 +163,20 @@
           "FromPort" : { "Ref" : "ServerPort" },
           "ToPort" : { "Ref" : "ServerPort" },
           "CidrIp" : "0.0.0.0/0"
-        } ]
+        },
+		{
+			"IpProtocol":"icmp",
+			"FromPort" : "-1",
+			"ToPort" : "-1",
+			"SourceSecurityGroupName":"default"
+		},
+		{
+			"IpProtocol":"tcp",
+			"FromPort" : "0",
+			"ToPort" : "65535",
+			"SourceSecurityGroupName":"default"
+		}
+		]
       }
     }
   },
