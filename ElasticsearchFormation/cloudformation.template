@@ -96,12 +96,8 @@
                                           "Arch" ] } ] },
         "UserData" : { "Fn::Base64" : {"Fn::Join":["",[
 			"#!/bin/bash\n",
-			"sed -i \"s/<access_key>/",
-			{"Ref":"AccessKey"},
-			"/g\"  /etc/elasticsearch/elasticsearch.yml\n",
-			"sed -i \"s/<secret_key>/",
-			{"Ref":"SecretKey"},
-			"/g\"  /etc/elasticsearch/elasticsearch.yml\n",
+			"sed -i \"s@<access_key>@",{"Ref":"AccessKey"},"@g\"  /etc/elasticsearch/elasticsearch.yml\n",
+			"sed -i \"s@<secret_key>@",{"Ref":"SecretKey"},"@g\"  /etc/elasticsearch/elasticsearch.yml\n",
 			"/etc/init.d/elasticsearch restart\n"
 		]]}},
         "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
@@ -163,20 +159,69 @@
           "FromPort" : { "Ref" : "ServerPort" },
           "ToPort" : { "Ref" : "ServerPort" },
           "CidrIp" : "0.0.0.0/0"
-        },
-		{
-			"IpProtocol":"icmp",
-			"FromPort" : "-1",
-			"ToPort" : "-1",
-			"SourceSecurityGroupName":"default"
-		},
-		{
-			"IpProtocol":"tcp",
+        }
+		]
+      }
+    },
+	"SelfInstanceSecurityGroupIngressTCP" : {
+		"Type" : "AWS::EC2::SecurityGroupIngress",
+		"Properties" : {
+			"GroupName" : {"Ref":"InstanceSecurityGroup"},
+			"IpProtocol" : "tcp",
 			"FromPort" : "0",
 			"ToPort" : "65535",
-			"SourceSecurityGroupName":"default"
+			"SourceSecurityGroupName" : {"Ref":"InstanceSecurityGroup"}
 		}
-		]
+	},
+	"SelfInstanceSecurityGroupIngressICMP" : {
+		"Type" : "AWS::EC2::SecurityGroupIngress",
+		"Properties" : {
+			"GroupName" : {"Ref":"InstanceSecurityGroup"},
+			"IpProtocol" : "icmp",
+			"FromPort" : "-1",
+			"ToPort" : "-1",
+			"SourceSecurityGroupName" : {"Ref":"InstanceSecurityGroup"}
+		}
+	},
+
+	"CPUAlarmHigh": {
+     "Type": "AWS::CloudWatch::Alarm",
+     "Properties": {
+        "AlarmDescription": "Scale-up if CPU > 80% for 2 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "60",
+        "EvaluationPeriods": "2",
+        "Threshold": "90",
+        "AlarmActions": [ { "Ref": "WebServerScaleUpPolicy" } ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": { "Ref" : "ServerGroup" }
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    },
+    "CPUAlarmLow": {
+     "Type": "AWS::CloudWatch::Alarm",
+     "Properties": {
+        "AlarmDescription": "Scale-down if CPU < 60% for 2 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "60",
+        "EvaluationPeriods": "2",
+        "Threshold": "70",
+        "AlarmActions": [ { "Ref": "WebServerScaleDownPolicy" } ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": { "Ref" : "ServerGroup" }
+          }
+        ],
+        "ComparisonOperator": "LessThanThreshold"
       }
     }
   },
